@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String  @map("user_id") @db.ObjectId
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String? @db.String
+  access_token      String? @db.String
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.String
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model User {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  name           String?
+  email          String?   @unique
+  emailVerified  DateTime? @map("email_verified")
+  image          String?
+  hashedPassword String?   @map("hashed_password")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt() @map("updated_at")
+  accounts       Account[]
+  messages       Message[]
+  chatIds        String[]  @map("chat_ids") @db.ObjectId
+  seenMessageIds String[]  @map("seen_message_ids") @db.ObjectId
+
+  chats        Chat[]    @relation(fields: [chatIds], references: [id])
+  seenMessages Message[] @relation("seen_messages", fields: [seenMessageIds], references: [id])
+
+  @@map("users")
+}
+
+model Chat {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  name          String?
+  isGroup       Boolean   @default(false) @map("is_group")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  lastMessageAt DateTime? @map("last_message_at")
+  userIds       String[]  @map("user_ids") @db.ObjectId
+  messages      Message[]
+
+  users User[] @relation(fields: [userIds], references: [id])
+
+  @@map("chats")
+}
+
+model Message {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  chatId    String   @map("chat_id") @db.ObjectId
+  userId    String   @map("user_id") @db.ObjectId
+  body      String?
+  image     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  seenByIds String[] @map("seen_by_ids") @db.ObjectId
+
+  chat   Chat   @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id])
+  seenBy User[] @relation("seen_messages", fields: [seenByIds], references: [id])
+
+  @@map("messages")
+}
